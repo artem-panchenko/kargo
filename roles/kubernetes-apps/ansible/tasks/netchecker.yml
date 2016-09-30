@@ -1,0 +1,45 @@
+- name: Kubernetes Apps | Lay Down Netchecker Template
+  template: src={{item.file}} dest={{kube_config_dir}}/{{item.file}}
+  with_items:
+    - {file: netchecker-agent-ds.yml, type: ds}
+    - {file: netchecker-agent-hostnet-ds.yml, type: ds}
+    - {file: netchecker-server-pod.yml, type: pod}
+    - {file: netchecker-server-svc.yml, type: svc}
+  register: manifests
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: Kubernetes Apps | Start Netchecker Resources
+  kube:
+    name: kubedns
+    namespace: kube-system
+    kubectl: "{{bin_dir}}/kubectl"
+    resource: "{{item.item.type}}"
+    filename: "{{kube_config_dir}}/{{item.item.file}}"
+    state: "{{item.changed | ternary('latest','present') }}"
+  with_items: "{{ manifests.results }}"
+  when: inventory_hostname == groups['kube-master'][0]
+
+- name: Wait for netchecker server
+  shell: "{{ bin_dir }}/kubectl get pods | grep ^netchecker-server"
+  run_once: true
+  register: ncs_pod
+  until: ncs_pod.stdout.find('Running') != -1
+  retries: 120
+  delay: 10
+
+- name: Wait for netchecker agents
+  shell: "{{ bin_dir }}/kubectl get pods | grep '^netchecker-agent-.*Running'"
+  run_once: true
+  register: nca_pod
+  until: "{{ nca_pod.stdout_lines|length }} >= {{ groups['all']|length * 2 }}"
+  retries: 120
+  delay: 10
+
+- name: Get netchecker agents
+  uri: url=http://localhost:{{netchecker_port}}/api/v1/agents/ return_content=yes
+  run_once: true
+  register: agents
+
+- name: Give some time to netchecker agents to report
+  pause: seconds=60
+  when: "{{ (agents.content|from_json|length) }} < {{ groups['all']|length * 2 }}"

@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: netchecker-server
+  labels:
+    app: netchecker-server
+spec:
+  containers:
+    - name: netchecker-server
+      image: "{{ server_img }}"
+      env:
+      imagePullPolicy: Always
+      ports:
+        - containerPort: 8081
+          hostPort: 8081
+    - name: kubectl-proxy
+      image: "{{ kubectl_image }}"
+      imagePullPolicy: Always
+      args:
+        - proxy
