@@ -8,22 +8,27 @@ docker ps | grep calico
 ```
 
 The **calicoctl** command allows to check the status of the network workloads.
-* Check the status of Calico nodes
-
+-* Check the status of Calico node
 ```
-calicoctl status
+calicoctl node status
 ```
 
 * Show the configured network subnet for containers
 
 ```
-calicoctl pool show
+ calicoctl get ippool -o wide
 ```
 
 * Show the workloads (ip addresses of containers and their located)
 
 ```
-calicoctl endpoint show --detail
+calicoctl get workloadEndpoint -o wide
+```
+
+and
+
+```
+calicoctl get hostEndpoint -o wide
 ```
 
 ##### Optionnal : BGP Peering with border routers

@@ -59,23 +59,21 @@
 - name: Calico | Define ipip pool argument
   run_once: true
   set_fact:
-    ipip_arg: "--ipip"
-  when: cloud_provider is defined or ipip|default(false)
+    enable_ipip: "{{ cloud_provider is defined or ipip }}"
 
 - name: Calico | Define nat-outgoing pool argument
   run_once: true
   set_fact:
-    nat_arg: "--nat-outgoing"
-  when: nat_outgoing|default(false) and not peer_with_router|default(false)
+    enable_nat_outgoing: nat_outgoing|default(false) and not peer_with_router|default(false)
 
 - name: Calico | Define calico pool task name
   run_once: true
   set_fact:
-    pool_task_name: "with options {{ ipip_arg|default('') }} {{ nat_arg|default('') }}"
-  when: ipip_arg|default(false) or nat_arg|default(false)
+    pool_task_name: "with options 'ipip': {{ enable_ipip }}, 'nat-outgoing': {{ enable_nat_outgoing }}"
+  when: enable_ipip|default(false) or enable_nat_outgoing|default(false)
 
 - name: Calico | Configure calico network pool {{ pool_task_name|default('') }}
-  command: "{{ bin_dir}}/calicoctl pool add {{ kube_pods_subnet }} {{ ipip_arg|default('') }} {{ nat_arg|default('') }}"
+  shell: "echo '{\"kind\": \"ipPool\", \"spec\": {\"disabled\": false, \"ipip\": {\"enabled\": {{ enable_ipip }}}, \"nat-outgoing\": true}, \"apiVersion\": \"v1\", \"metadata\": {\"cidr\": \"{{ kube_pods_subnet }}\"}}' | {{ bin_dir }}/calicoctl create -f -"
   environment:
     NO_DEFAULT_POOLS: true
   run_once: true
@@ -124,11 +122,11 @@
     enabled: yes
 
 - name: Calico | Disable node mesh
-  shell: "{{ bin_dir }}/calicoctl bgp node-mesh off"
+  command: "{{ bin_dir }}/calicoctl config set nodeToNodeMesh off"
   when: peer_with_router|default(false) and inventory_hostname in groups['kube-node']
 
 - name: Calico | Configure peering with router(s)
-  shell: "{{ bin_dir }}/calicoctl node bgp peer add {{ item.router_id }} as {{ item.as }}"
+  shell: "echo '{\"kind\": \"bgppeer\", \"spec\": {\"asNumber\": {{ item.as }}}, \"apiVersion\": \"v1\", \"metadata\": {\"node\": \"rack1-host1\", \"scope\": \"node\", \"peerIP\": \"{{ item.router_id }}\"}}' | {{ bin_dir }}/calicoctl create -f -"
   with_items: peers
   when: peer_with_router|default(false) and inventory_hostname in groups['kube-node']
 

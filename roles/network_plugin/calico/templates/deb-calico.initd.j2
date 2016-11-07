@@ -51,7 +51,7 @@ do_start()
     do_status
     retval=$?
     if [ $retval -ne 0 ]; then
-        ${DAEMON} node --ip=${DEFAULT_IPV4} >>/dev/null && return 0 || return 2
+        ${DAEMON} node run --ip=${DEFAULT_IPV4} >>/dev/null && return 0 || return 2
     else
         return 1
     fi
