@@ -26,3 +26,11 @@
     mode: 0755
   when: ansible_service_mgr in ["sysvinit","upstart"] and ansible_os_family == "Debian" and is_etcd_master
   notify: restart etcd
+
+- name: Configure | Set default etcdctl endpoint
+  template:
+    src: "etcdctl_bash_profile.j2"
+    dest: /etc/profile.d/01-etcd.sh
+    owner: root
+    mode: 0644
+  when: is_etcd_master
